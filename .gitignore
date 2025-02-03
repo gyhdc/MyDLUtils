@@ -1,0 +1,4 @@
+data/
+runs/
+save_weights/
+__pycache__/# 忽略所有自动生成的 Python 编译文件

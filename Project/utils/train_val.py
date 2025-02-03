@@ -85,11 +85,11 @@ def validate_model(model, val_loader, device,only_val=False):
     )
 
     metrics = {
-        "accuracy": accuracy,
-        "precision": precision,
-        "recall": recall,
-        "f1": f1,
-        "ap": ap
+        "Accuracy": accuracy,
+        "Precision": precision,
+        "Recall": recall,
+        "F1": f1,
+        "AP": ap
     }
     return metrics
 
@@ -99,11 +99,11 @@ def update_best_model(bestMod, current_metrics, epoch_loss, model, epoch,metrics
     current_metrics 为一个字典，包含 accuracy, precision, recall, ap 等指标。
     """
     zh = weighted_average_metrics(
-        acc=current_metrics["accuracy"],
-        recall=current_metrics["recall"],
-        ap=current_metrics["ap"],
+        acc=current_metrics["Accuracy"],
+        recall=current_metrics["Recall"],
+        ap=current_metrics["AP"],
         loss=epoch_loss,
-        precision=current_metrics["precision"],
+        precision=current_metrics["Precision"],
         weights=metrics_weights
     )
     try:
@@ -112,7 +112,7 @@ def update_best_model(bestMod, current_metrics, epoch_loss, model, epoch,metrics
             ap=bestMod.ap,
             loss=bestMod.loss,
             recall=bestMod.recall,
-            precision=current_metrics["precision"],  # 注意这里依然使用当前的 precision
+            precision=current_metrics["Precision"],  # 注意这里依然使用当前的 precision
             weights=metrics_weights
         )
     except Exception:
@@ -123,24 +123,24 @@ def update_best_model(bestMod, current_metrics, epoch_loss, model, epoch,metrics
         if float_equal(zh, mod_zh):
             if epoch_loss < bestMod.loss:
                 bestMod.update(
-                    acc=current_metrics["accuracy"],
+                    acc=current_metrics["Accuracy"],
                     model=model,
                     loss=epoch_loss,
-                    precision=current_metrics["precision"],
-                    recall=current_metrics["recall"],
-                    ap=current_metrics["ap"],
-                    # f1=current_metrics["f1"],
+                    precision=current_metrics["Precision"],
+                    recall=current_metrics["Recall"],
+                    ap=current_metrics["AP"],
+                    # f1=current_metrics["F1"],
                     epoch=epoch,
                 )
         else:
             bestMod.update(
-                acc=current_metrics["accuracy"],
+                acc=current_metrics["Accuracy"],
                 model=model,
                 loss=epoch_loss,
                 # f1=current_metrics["f1"],
-                precision=current_metrics["precision"],
-                recall=current_metrics["recall"],
-                ap=current_metrics["ap"],
+                precision=current_metrics["Precision"],
+                recall=current_metrics["Recall"],
+                ap=current_metrics["AP"],
                 epoch=epoch,
             )
 
@@ -191,27 +191,27 @@ def train_model(model,
         metrics = validate_model(model, val_loader, device)
         # 更新日志
         loss_history.append(epoch_loss)
-        acc_history.append(metrics["accuracy"])
-        precision_history.append(metrics["precision"])
-        recall_history.append(metrics["recall"])
-        f1_history.append(metrics["f1"])
-        ap_history.append(metrics["ap"])
+        acc_history.append(metrics["Accuracy"])
+        precision_history.append(metrics["Precision"])
+        recall_history.append(metrics["Recall"])
+        f1_history.append(metrics["F1"])
+        ap_history.append(metrics["AP"])
 
         # 根据加权指标更新最佳模型
         update_best_model(bestMod, metrics, epoch_loss, model, epoch,metrics_weights=metrics_weights)
         # 打印本周期结果
         print(f'Epoch {epoch + 1}/{num_epochs}, Loss: {epoch_loss:.4f},  '
-              f'Val Accuracy: {metrics["accuracy"]:.4f}, AP: {metrics["ap"]:.4f}, '
-              f'Precision: {metrics["precision"]:.4f}, Recall: {metrics["recall"]:.4f}')
+              f'Val Accuracy: {metrics["Accuracy"]:.4f}, AP: {metrics["AP"]:.4f}, '
+              f'Precision: {metrics["Precision"]:.4f}, Recall: {metrics["Recall"]:.4f}')
         print(f"当前最好的模型： {str(bestMod)}")
 
         # 更新 train_logs 对象
         train_logs.update(
-            train_loss_lst=loss_history,
-            val_acc_lst=acc_history,
+            loss_lst=loss_history,
+            val_accuracy_lst=acc_history,
             precision_lst=precision_history,
             recall_lst=recall_history,
             f1_lst=f1_history,
-            ap_lst=ap_history,
+            AP_lst=ap_history,
         )
     return bestMod, train_logs

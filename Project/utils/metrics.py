@@ -23,24 +23,28 @@ class TensorboardRecorder:
         如果 log_dir 为 None，则使用默认日志路径 runs/。
         """
         self.writer = SummaryWriter(log_dir=log_dir)
+    def get_proper_tag(self, tag : str):
+        '''第一个字符大写，其余不变'''
+        tag=tag.replace("_lst","")
+        # capitalized_s = tag[0].upper() + tag[1:]
+        return tag
+
     def logs_scalars(self, scalars: dict, prefix: str = ""):
         '''
             scalars:{"Accuracy":[acc1,aacc2...]}
-
+            参数：
+                scalars: 字典，键为指标名称，值为一个列表，表示每个指标的记录值。
+                prefix: 前缀，用于区分不同指标。
         '''
         keys=list(scalars.keys())
         epochs_num=len(scalars[keys[0]])
         for key,logs in scalars.items():
             for epoch in range(epochs_num):
-                self.writer.add_scalar(f"{prefix}{key}", logs[epoch], epoch)
+                key=self.get_proper_tag(key)
+                tag="_".join([prefix,key])
+                
+                self.writer.add_scalar(tag, logs[epoch], epoch)
 
-    def log_scalars(self, scalars: dict, epoch: int, prefix: str = ""):
-        """
-        scalars: dict, 例如 {"Loss/Train": loss, "Metrics/Accuracy": acc, ...}
-        prefix: 如果需要可以为所有指标添加前缀
-        """
-        for key, value in scalars.items():
-            self.writer.add_scalar(f"{prefix}{key}", value, epoch)
     
     def log_model_graph(self, model, input_example):
         """
