@@ -63,7 +63,7 @@ def validate_model(model, val_loader, device,only_val=False):
                 predicted_scores.extend(outputs[:, 1].cpu().numpy())
     else:
         with torch.no_grad():
-            for inputs, labels in tqdm(val_loader):
+            for inputs, labels in val_loader:
                 inputs, labels = inputs.to(device), labels.to(device)
                 outputs = model(inputs)
                 # 取预测类别
@@ -205,13 +205,13 @@ def train_model(model,
               f'Precision: {metrics["precision"]:.4f}, Recall: {metrics["recall"]:.4f}')
         print(f"当前最好的模型： {str(bestMod)}")
 
-    # 更新 train_logs 对象
-    train_logs.update(
-        train_loss_lst=loss_history,
-        val_acc_lst=acc_history,
-        precision_lst=precision_history,
-        recall_lst=recall_history,
-        f1_lst=f1_history,
-        ap_lst=ap_history,
-    )
+        # 更新 train_logs 对象
+        train_logs.update(
+            train_loss_lst=loss_history,
+            val_acc_lst=acc_history,
+            precision_lst=precision_history,
+            recall_lst=recall_history,
+            f1_lst=f1_history,
+            ap_lst=ap_history,
+        )
     return bestMod, train_logs

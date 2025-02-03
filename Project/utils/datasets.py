@@ -205,7 +205,7 @@ def get_transform(
     data_transforms = {
         'train': transforms.Compose([
             # transforms.RandomResizedCrop(resize_size, scale=(0.6, 1.0), ratio=(0.75, 1.33), interpolation=transforms.InterpolationMode.BILINEAR),#随机缩放
-            transforms.RandomResizedCrop(224,scale=(0.5, 1.0), ratio=(3./4., 4./3.)),#随机裁剪
+            transforms.RandomResizedCrop(resize_size,scale=(0.5, 1.0), ratio=(3./4., 4./3.)),#随机裁剪
             # transforms.RandomHorizontalFlip(p=0.5),#随机水平翻转
             transforms.RandomVerticalFlip(p=0.5),#随机垂直翻转
             transforms.RandomGrayscale(p=0.4),  # 概率将图像转换为灰度

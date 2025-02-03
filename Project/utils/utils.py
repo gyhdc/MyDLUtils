@@ -144,6 +144,8 @@ class Logs:
         else:
             self.logs=params
             self.set_attr()
+    def get_keys(self):
+        return list(self.logs.keys())
     def update(self,**params):
         self.logs.update(params)
         self.set_attr()
@@ -183,7 +185,20 @@ def saveProcess(saveDir,bestMod,train_log,config):
     bestMod.save(saveDir)
     config.save(saveDir)
     train_log.save(saveDir)
-
+def loadProcess(saveDir):
+    '''
+        加载训练记录
+        参数：
+            saveDir：模型保存文件夹的路径
+        返回：
+            bestMod：BestSelector对象
+            config：Config对象
+            train_log：Logs对象
+    '''
+    bestMod=BestSelector(os.path.join(saveDir,"metrics.json"))
+    config=Config(os.path.join(saveDir,"config.json"))
+    train_log=Logs(os.path.join(saveDir,"logs.json"))
+    return bestMod,config,train_log
 if __name__ == '__main__':
     logs_path=r'D:\Desktop\深度学习\4.nlp-\生物信息\Test\models\exp_3_4_4\train_log.json'
     mod=BestSelector(r"D:\Desktop\深度学习\4.nlp-\生物信息\Test\models\exp_3_4_4\metrics.json")

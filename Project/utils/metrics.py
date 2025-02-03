@@ -2,6 +2,67 @@ import numpy as np
 import torch
 import tqdm
 
+from torch.utils.tensorboard import SummaryWriter
+
+
+'''
+• Scalars：显示训练损失和准确率的变化曲线。
+• Graphs：可以查看模型的计算图。
+• Images：如果记录了图像数据，可以在这里查看。
+• Distributions 和 Histograms：可以查看模型参数的分布
+
+'''
+class TensorboardRecorder:
+    '''
+        Tensorboard 记录器
+        参数：
+            log_dir: 日志目录，默认为 runs/。
+    '''
+    def __init__(self, log_dir=None):
+        """
+        如果 log_dir 为 None，则使用默认日志路径 runs/。
+        """
+        self.writer = SummaryWriter(log_dir=log_dir)
+    def logs_scalars(self, scalars: dict, prefix: str = ""):
+        '''
+            scalars:{"Accuracy":[acc1,aacc2...]}
+
+        '''
+        keys=list(scalars.keys())
+        epochs_num=len(scalars[keys[0]])
+        for key,logs in scalars.items():
+            for epoch in range(epochs_num):
+                self.writer.add_scalar(f"{prefix}{key}", logs[epoch], epoch)
+
+    def log_scalars(self, scalars: dict, epoch: int, prefix: str = ""):
+        """
+        scalars: dict, 例如 {"Loss/Train": loss, "Metrics/Accuracy": acc, ...}
+        prefix: 如果需要可以为所有指标添加前缀
+        """
+        for key, value in scalars.items():
+            self.writer.add_scalar(f"{prefix}{key}", value, epoch)
+    
+    def log_model_graph(self, model, input_example):
+        """
+        记录模型结构图，需要提供一个 input_example 用于构建图。
+        """
+        self.writer.add_graph(model, input_example)
+    
+    def log_histograms(self, model, epoch: int):
+        """
+        对模型所有参数添加直方图记录，便于观察参数分布变化。
+        """
+        for name, param in model.named_parameters():
+            self.writer.add_histogram(name, param, epoch)
+    
+    def log_text(self, tag: str, text: str, epoch: int):
+        """
+        添加文本记录，比如保存模型结构、超参数信息等。
+        """
+        self.writer.add_text(tag, text, epoch)
+    
+    def close(self):
+        self.writer.close()
 def get_parameters_num(model):
     '''
         获取模型参数量
