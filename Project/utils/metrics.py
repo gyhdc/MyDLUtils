@@ -75,7 +75,13 @@ def get_parameters_num(model):
     '''
     total_params = sum(p.numel() for p in model.parameters())
     return total_params
-def measure_inference_time(model, device, input_shape=(1, 3, 256, 256), repetitions=300,unit=1000):
+def get_inference_time(
+        model, 
+        device, 
+        input_shape=(4, 3, 256, 256), 
+        repetitions=300,
+        unit=1000
+        ):
     '''
         获取平均模型推理时间
         model: 模型
@@ -91,15 +97,15 @@ def measure_inference_time(model, device, input_shape=(1, 3, 256, 256), repetiti
     model.eval()
     
     # 预热 GPU
-    print('Warm up ...\n')
+    # print('Warm up ...\n')
     with torch.no_grad():
-        for _ in tqdm.tqdm(range(100),desc='Warm up'):
+        for _ in tqdm.tqdm(range(100),desc='Warm up ....'):
             _ = model(dummy_input)
     # 同步等待所有 GPU 任务完成
     torch.cuda.synchronize()
     # 初始化时间容器
     timings =[]
-    print('Testing ...\n')
+    # print('Testing ...\n')
     with torch.no_grad():
         for rep in tqdm.tqdm(range(repetitions),desc='Testing ...'):
             starter = torch.cuda.Event(enable_timing=True)

@@ -24,9 +24,10 @@ class AutoCNN(nn.Module):
                  input_channels=3,
                  input_size=(28,28),
                  num_classes=10, 
-                 hidden_channels_size_1=128,
-                 hidden_channels_size_2=64,
-                 mlp_hidden_size=256
+                 hidden_channels_size_1=64,
+                 hidden_channels_size_2=128,
+                 hidden_channels_size_3=256,
+                 mlp_hidden_size=512
         ):
         super(AutoCNN, self).__init__()
         self.input_channels = input_channels
@@ -39,14 +40,16 @@ class AutoCNN(nn.Module):
             nn.MaxPool2d(kernel_size=2,stride=2),#
             nn.Conv2d(hidden_channels_size_1,hidden_channels_size_2,kernel_size=3,stride=1,padding=1),
             nn.ReLU(),
-            nn.MaxPool2d(kernel_size=2,stride=2),#(14+2*0-2)/2+1=7
-
+            nn.AvgPool2d(kernel_size=2,stride=2),#(14+2*0-2)/2+1=7
+            nn.Conv2d(hidden_channels_size_2,hidden_channels_size_3,kernel_size=3,stride=1,padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2,stride=2)
         )
         self.final_H,self.final_W=self.compute_output_size()
         # print(self.final_H,self.final_W)
         self.classifier=nn.Sequential(
             nn.Linear(
-                in_features=hidden_channels_size_2*self.final_H*self.final_W,#将图像展平成特征向量
+                in_features=hidden_channels_size_3*self.final_H*self.final_W,#将图像展平成特征向量
                 out_features=mlp_hidden_size
             ),
            
