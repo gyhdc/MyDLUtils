@@ -35,6 +35,7 @@ class BasicBlock(nn.Module):
     ):
         super().__init__()
         self.downsample=downsample#下采样层
+        #每个残差层，只有第一个残差块可能下采样，第一个残差块的第一个卷积可能下采样
         self.feature_extractor=nn.Sequential(
             nn.Conv2d(
                 input_channels,output_channels,
@@ -175,6 +176,19 @@ def resnet18(
         basic_block=BasicBlock,#采用什么类型的残差块
         num_classes=num_classes,
     )
+def resnet34(
+        num_classes=1000,
+        input_channels=3,
+):
+    return ResNet(
+        input_channels=input_channels,
+        layers=[3, 4, 6, 3],  # 每层的残差块个数
+        layers_channels=[64, 128, 256, 512],  # 每层的输出通道数
+        layers_stride=[1, 2, 2, 2],  # 每层残差块的下采样步长
+        basic_block=BasicBlock,  # 采用什么类型的残差块
+        num_classes=num_classes,
+    )
+
 # import sys
 # sys.path.append("..")
 
