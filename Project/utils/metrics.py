@@ -67,58 +67,78 @@ class TensorboardRecorder:
     
     def close(self):
         self.writer.close()
-def get_parameters_num(model):
-    '''
-        获取模型参数量
-        model: 模型
-        return: 模型参数量
-    '''
-    total_params = sum(p.numel() for p in model.parameters())
-    return total_params
-def get_inference_time(
-        model, 
-        device, 
-        input_shape=(4, 3, 256, 256), 
+class ModelMeasurer:
+    def __init__(self,model,device="cuda"):
+        self.model=model
+        self.device=device
+    def get_parameters_num(self,):
+        '''
+            获取模型总参数量
+            model: 模型
+            return: 模型参数量
+        '''
+        total_params = sum(p.numel() for p in self.model.parameters())
+        return total_params
+    def get_parameters_num_by_layer(self):
+        total_params = 0
+        imformation={}
+        for name, parameter in self.model.named_parameters():
+            param_count = parameter.numel()
+            imformation[str(name)]=param_count
+            total_params += param_count
+        imformation["total"]=total_params
+    def print_parameters_num_by_layer(self):
+        total_params = 0
+        for name, parameter in self.model.named_parameters():
+            param_count = parameter.numel()
+            print(f"{name}: {param_count}")
+            total_params += param_count
+        print(f"Total parameters: {total_params}")
+    def get_inference_time(
+        self,
+        input_shape=(4, 3, 128, 128), 
         repetitions=300,
         unit=1000
         ):
-    '''
-        获取平均模型推理时间
-        model: 模型
-        device: 设备
-        input_shape: 输入形状
-        repetitions: 测试次数
-        unit: 时间单位，默认为毫秒
-        return: 平均推理时间
-    '''
+        '''
+            获取平均模型推理时间
+            model: 模型
+            device: 设备
+            input_shape: 输入形状
+            repetitions: 测试次数
+            unit: 时间单位，默认为毫秒
+            return: 平均推理时间
+        '''
     # 准备模型和输入数据
-    model = model.to(device)
-    dummy_input = torch.rand(*input_shape).to(device)
-    model.eval()
-    
-    # 预热 GPU
-    # print('Warm up ...\n')
-    with torch.no_grad():
-        for _ in tqdm.tqdm(range(100),desc='Warm up ....'):
-            _ = model(dummy_input)
-    # 同步等待所有 GPU 任务完成
-    torch.cuda.synchronize()
-    # 初始化时间容器
-    timings =[]
-    # print('Testing ...\n')
-    with torch.no_grad():
-        for rep in tqdm.tqdm(range(repetitions),desc='Testing ...'):
-            starter = torch.cuda.Event(enable_timing=True)
-            ender = torch.cuda.Event(enable_timing=True)
-            starter.record()
-            _ = model(dummy_input)
-            ender.record()
-            # 同步等待 GPU 任务完成
-            torch.cuda.synchronize()
-            curr_time = starter.elapsed_time(ender)  # 从 starter 到 ender 之间用时，单位为毫秒
-            timings.append( curr_time)
-    avg = sum(timings) / repetitions/unit
-    return avg
+        model = self.model.to(self.device)
+        dummy_input = torch.rand(*input_shape).to(self.device)
+        model.eval()
+        
+        # 预热 GPU
+        # print('Warm up ...\n')
+        with torch.no_grad():
+            for _ in tqdm.tqdm(range(100),desc='Warm up ....'):
+                _ = model(dummy_input)
+        # 同步等待所有 GPU 任务完成
+        torch.cuda.synchronize()
+        # 初始化时间容器
+        timings =[]
+        # print('Testing ...\n')
+        with torch.no_grad():
+            for rep in tqdm.tqdm(range(repetitions),desc='Testing ...'):
+                starter = torch.cuda.Event(enable_timing=True)
+                ender = torch.cuda.Event(enable_timing=True)
+                starter.record()
+                _ = model(dummy_input)
+                ender.record()
+                # 同步等待 GPU 任务完成
+                torch.cuda.synchronize()
+                curr_time = starter.elapsed_time(ender)  # 从 starter 到 ender 之间用时，单位为毫秒
+                timings.append( curr_time)
+        avg = sum(timings) / repetitions/unit
+        return avg
+
+
 
 def weighted_average_metrics(acc, ap, precision , recall, loss, weights=[1.1, 1.2, 1,1, 1.05]):
     '''
