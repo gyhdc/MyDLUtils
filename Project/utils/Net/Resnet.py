@@ -10,7 +10,9 @@ import torch.nn.functional as F
 #核心，用stride控制是否下采样,ksp,311保持尺寸不变
 class BasicBlock(nn.Module):
     '''
-        Resnet保证网络的统一性，kernel size通常保持不变为3,5*5和7*7都能被3*3等效
+        Resnet保证网络的统一性，kernel size通常保持不变为3,
+        因为多个3×3卷积可以组合成更大的感受野，同时减少参数数量。
+        虽然5×5或7×7卷积核可以实现更大的感受野，但它们的参数更多，计算成本更高。
         由stride控制是否下采样 
         输出尺寸: H=(h+2*p-k)/s+1
         用downsample对不匹配的输入的通道数进行1*1卷积核进行匹配

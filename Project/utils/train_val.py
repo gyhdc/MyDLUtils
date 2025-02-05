@@ -153,7 +153,9 @@ def train_model(model,
                 train_logs, 
                 config, 
                 metrics_weights=[30, 1.2, 1,1, 1.05],
-                num_epochs=10
+                num_epochs=10,
+                checkpoint_interval=0.25,
+                show_progress_interval=2
     ):
     
     """
@@ -173,6 +175,8 @@ def train_model(model,
     返回:
     bestMod: 最佳模型对象。
     train_logs: 训练日志记录列表。
+    checkpoint_interval: 检查点保存的间隔。
+    show_progress_interval: 进度条显示的间隔。
     """
     num_epochs=config.epochs
     device = config.device
@@ -183,7 +187,19 @@ def train_model(model,
     recall_history = []
     f1_history = []
     ap_history = []
-
+    if checkpoint_interval < 1:
+        final_checkpoint_interval=int(checkpoint_interval*num_epochs)#每百分之epochs检查一次
+    else:
+        final_checkpoint_interval=checkpoint_interval
+    if show_progress_interval < 1:
+        show_progress_interval=int(show_progress_interval*num_epochs)#每百分之epochs检查一次
+    else:
+        show_progress_interval=show_progress_interval
+    if final_checkpoint_interval==0:
+        final_checkpoint_interval=1
+    if show_progress_interval==0:
+        show_progress_interval=1
+        
     for epoch in tqdm(range(num_epochs), desc="Training Epochs"):
         # 训练阶段
         epoch_loss = train_one_epoch(model, criterion, optimizer, train_loader, device)
@@ -199,11 +215,16 @@ def train_model(model,
 
         # 根据加权指标更新最佳模型
         update_best_model(bestMod, metrics, epoch_loss, model, epoch,metrics_weights=metrics_weights)
-        # 打印本周期结果
-        print(f'Epoch {epoch + 1}/{num_epochs}, Loss: {epoch_loss:.4f},  '
-              f'Val Accuracy: {metrics["Accuracy"]:.4f}, AP: {metrics["AP"]:.4f}, '
-              f'Precision: {metrics["Precision"]:.4f}, Recall: {metrics["Recall"]:.4f}')
-        print(f"当前最好的模型： {str(bestMod)}")
+        if epoch % final_checkpoint_interval ==0:
+            #记录检测点
+            bestMod.update_checkpoint(model, epoch)
+        
+        if epoch % show_progress_interval == 0:
+            # 打印本周期结果
+            print(f'Epoch {epoch + 1}/{num_epochs}, Loss: {epoch_loss:.4f},  '
+                    f'Val Accuracy: {metrics["Accuracy"]:.4f}, AP: {metrics["AP"]:.4f}, '
+                    f'Precision: {metrics["Precision"]:.4f}, Recall: {metrics["Recall"]:.4f}')
+            print(f"当前最好的模型： {str(bestMod)}")
 
         # 更新 train_logs 对象
         train_logs.update(

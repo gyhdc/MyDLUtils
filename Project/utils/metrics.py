@@ -18,17 +18,22 @@ class TensorboardRecorder:
         参数：
             log_dir: 日志目录，默认为 runs/。
     '''
-    def __init__(self, log_dir=None):
+    def __init__(self, log_dir=None,input_shape=[4,3,128,128],model=None):
         """
         如果 log_dir 为 None，则使用默认日志路径 runs/。
         """
         self.writer = SummaryWriter(log_dir=log_dir)
+        self.input_shape=input_shape
+        self.model=model
     def get_proper_tag(self, tag : str):
         '''第一个字符大写，其余不变'''
         tag=tag.replace("_lst","")
         # capitalized_s = tag[0].upper() + tag[1:]
         return tag
-
+    def logs(self,scalars: dict, prefix: str = "",):
+        self.logs_scalars(scalars, prefix=prefix)
+        if self.model is not None:
+            self.log_model_graph(self.model, self.input_shape)
     def logs_scalars(self, scalars: dict, prefix: str = ""):
         '''
             scalars:{"Accuracy":[acc1,aacc2...]}
@@ -106,9 +111,10 @@ class ModelMeasurer:
             device: 设备
             input_shape: 输入形状
             repetitions: 测试次数
-            unit: 时间单位，默认为毫秒
+            unit: 时间单位，默认为毫秒,1为秒
             return: 平均推理时间
         '''
+        unit*=1000
     # 准备模型和输入数据
         model = self.model.to(self.device)
         dummy_input = torch.rand(*input_shape).to(self.device)
@@ -134,8 +140,8 @@ class ModelMeasurer:
                 # 同步等待 GPU 任务完成
                 torch.cuda.synchronize()
                 curr_time = starter.elapsed_time(ender)  # 从 starter 到 ender 之间用时，单位为毫秒
-                timings.append( curr_time)
-        avg = sum(timings) / repetitions/unit
+                timings.append( curr_time)#以毫秒为单位
+        avg = (sum(timings) / repetitions)/unit
         return avg
 
 

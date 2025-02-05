@@ -34,6 +34,7 @@ class AutoCNN(nn.Module):
         self.feature_extractor=nn.Sequential(
             nn.Conv2d(input_channels,hidden_channels_size_1,kernel_size=3,stride=1,padding=1),
             #(h+2*p-k)/s+1
+            nn.BatchNorm2d(hidden_channels_size_1),#2d对2维图进行batchnorm
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2,stride=2),#
             nn.Conv2d(hidden_channels_size_1,hidden_channels_size_2,kernel_size=3,stride=1,padding=1),

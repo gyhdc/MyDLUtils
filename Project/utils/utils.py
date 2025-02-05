@@ -68,13 +68,23 @@ class BestSelector:
         else:
             self.bestMetrics = params
             self.set_attr()
+        
 
     def __getitem__(self, key):
         return self.bestMetrics[key]
 
     def update(self, **params):
-        self.bestMetrics = params
+        self.bestMetrics.update(params)
         self.set_attr()
+    def update_checkpoint(self,model,epoch):
+        '''
+            用于单独保存检查点的模型
+        '''
+        checkpoint_name=f"checkpoint_{epoch}"
+        if self.bestMetrics.get("checkpoints",None) is None:
+            self.bestMetrics["checkpoints"]={}
+        self.bestMetrics["checkpoints"][checkpoint_name]=model
+
     def read(self,path):
         with open(path) as f:
             data=json.load(f)
@@ -96,17 +106,38 @@ class BestSelector:
 
 
     def save(self, dirPath):
+        #获取dirpath的绝对路径
+        # dirPath = os.path.abspath(dirPath)
+
         if not os.path.exists(dirPath):
             os.mkdir(dirPath)
         metrics = {}
         for key, val in self.bestMetrics.items():
-            if key == "model":
+            if key.find("model") !=-1:
+
+                
                 pthSavePath = os.path.join(dirPath, "best.pth")
                 torch.save(val, pthSavePath)
                 metrics["model"] = pthSavePath
+            elif key.find("checkpoint") !=-1:
+                '''
+                    checkpoints={
+                        "checkpoint_50":model1,
+                        ...
+                    }
+                '''
+                if isinstance(val, dict):#包括检测点
+                    if metrics.get("checkpoints", None) is None:
+                        metrics["checkpoints"] = {}
+                    for model_name,model in val.items():
+                        pthSavePath = os.path.join(dirPath, model_name + ".pth")
+                        torch.save(model, pthSavePath)
+                        metrics["checkpoints"][model_name] = pthSavePath
+                
             else:
                 metrics[key] = val
         with open(os.path.join(dirPath, "metrics.json"), mode='w') as f:
+            print(metrics)
             json.dump(metrics, f)
 
     def __str__(self):
