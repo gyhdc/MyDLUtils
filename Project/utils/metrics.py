@@ -81,6 +81,7 @@ class ModelMeasurer:
         inference_time=self.get_inference_time(input_shape=input_shape)
         # measurer.print_parameters_num_by_layer()
         print(f"参数数量：{parameters_num}\n推理时间：{inference_time} ms")
+        return parameters_num,inference_time
     def get_parameters_num(self,):
         '''
             获取模型总参数量
@@ -108,7 +109,7 @@ class ModelMeasurer:
         self,
         input_shape=(4, 3, 128, 128), 
         repetitions=300,
-        unit=1000
+        unit=1
         ):
         '''
             获取平均模型推理时间
