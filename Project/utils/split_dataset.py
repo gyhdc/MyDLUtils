@@ -7,7 +7,6 @@ def split_data(data_dir,target_dir,label,sep=[0.7,0.25,0.05]):
     os.makedirs(os.path.join(target_dir, 'train',label), exist_ok=True)
     os.makedirs(os.path.join(target_dir, 'val',label), exist_ok=True)
     os.makedirs(os.path.join(target_dir, 'test',label), exist_ok=True)
-    import glob
 
     image_files = [os.path.join(data_dir, x) for x in os.listdir(data_dir)]
     random.shuffle(image_files)

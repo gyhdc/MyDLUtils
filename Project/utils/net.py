@@ -12,6 +12,8 @@ import torch.nn.functional as F
 from .metrics import ModelMeasurer
 from .Net.ResNet import ResNet
 from .Net.CNN import AutoCNN
+from .Net.AlexNet import AlexNet
+from .Net.VGGNet import VGGNet
 from .Net.Pretrained import BinaryClassificationMobileNetV3Large
 
 

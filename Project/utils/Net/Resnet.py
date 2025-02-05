@@ -85,8 +85,10 @@ class ResNet(nn.Module):
         self.layers_channels=layers_channels
         self.layers_stride=layers_stride
          
-        self.basic_block=basic_block#调用的残差块类型
+        self.basic_block=basic_block #调用的残差块类型
         self.initial_block=nn.Sequential(
+            #ResNet中最初的7×7大卷积层用于对输入图像进行初步的特征提取和降采样，
+            #捕捉较大尺度的纹理和边缘信息，为后续的残差块提供丰富的初始特征表示。
             nn.Conv2d(input_channels,hidden_channels,kernel_size=7,stride=2,padding=3,bias=False),
             nn.BatchNorm2d(hidden_channels),
             nn.ReLU(),
@@ -95,7 +97,7 @@ class ResNet(nn.Module):
         self.now_input_channels=hidden_channels#initial_block的输出通道数，作为下一层的输入通道数
         self.Layers=self.get_Layers(stride_list=layers_stride)#获取每一层
         self.classifier=nn.Sequential(#分类器
-            nn.AdaptiveAvgPool2d((1,1)),#自适应平均池化，输出尺寸为1*1
+            nn.AdaptiveAvgPool2d((1,1)),#自适应平均池化，输出尺寸为1*1，池化也是一种类似的卷积计算
             nn.Flatten(),#出batchsize维度都展平·
             nn.BatchNorm1d(self.now_input_channels),#通道数已经扩张
             nn.Linear(
@@ -103,7 +105,7 @@ class ResNet(nn.Module):
             ),#全连接层
         )
     def forward(self,x):
-        x=self.initial_block(x)
+        x=self.initial_block(x)#初始卷积块，用
         x=self.Layers(x)#残差层
         x=self.classifier(x)#全局池化后展平为向量再分类
         return x
@@ -141,7 +143,7 @@ class ResNet(nn.Module):
             '''
             downsample=nn.Sequential(
                 nn.Conv2d(self.now_input_channels,expansion_output_channels,kernel_size=1,stride=stride,bias=False),
-                #1*1的卷积进行通道数对齐，同时进行下采样stride为2
+                #1*1的卷积进行通道数对齐，或进行下采样stride为2
                 nn.BatchNorm2d(expansion_output_channels),
                 #batchnorm自带偏置对输出进行归一化，使得输出的均值为0，方差为1
             )

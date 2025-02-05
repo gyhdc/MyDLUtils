@@ -76,6 +76,11 @@ class ModelMeasurer:
     def __init__(self,model,device="cuda"):
         self.model=model
         self.device=device
+    def simply_check_model(self,input_shape=(4, 3, 128, 128)):
+        parameters_num=self.get_parameters_num()
+        inference_time=self.get_inference_time(input_shape=input_shape)
+        # measurer.print_parameters_num_by_layer()
+        print(f"参数数量：{parameters_num}\n推理时间：{inference_time} ms")
     def get_parameters_num(self,):
         '''
             获取模型总参数量
