@@ -59,7 +59,7 @@ class VGGNet(nn.Module):
         return nn.Sequential(*layers)
     def get_config(self,config):
         if isinstance(config,str) :
-            self.VGGNet_CONFIGS = {
+            self.VGGNet_CONFIGS = {#输出通道数或者池化层
                 'A': [64, 'M', 128, 'M', 256, 256, 'M', 512, 512, 'M', 512, 512, 'M'],  # VGG11
                 'B': [64, 64, 'M', 128, 128, 'M', 256, 256, 'M', 512, 512, 'M', 512, 512, 'M'],  # VGG13
                 'D': [64, 64, 'M', 128, 128, 'M', 256, 256, 256, 'M', 512, 512, 512, 'M', 512, 512, 512, 'M'],  # VGG16
