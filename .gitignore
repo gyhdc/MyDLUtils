@@ -2,6 +2,6 @@ data/
 runs/
 whl*/
 save_weights/
-
+test*
 __pycache__/# 忽略所有自动生成的 Python 编译文件
 MMDet/
