@@ -15,7 +15,7 @@ from .Net.CNN import AutoCNN
 from .Net.AlexNet import AlexNet
 from .Net.VGGNet import VGGNet
 from .Net.Pretrained import BinaryClassificationMobileNetV3Large
-
+from .Net.GoogLeNet import GoogLeNet
 
 
 

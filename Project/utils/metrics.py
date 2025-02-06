@@ -78,9 +78,10 @@ class ModelMeasurer:
         self.device=device
     def simply_check_model(self,input_shape=(4, 3, 128, 128)):
         parameters_num=self.get_parameters_num()
+        print(f"参数数量：{parameters_num}")
         inference_time=self.get_inference_time(input_shape=input_shape)
         # measurer.print_parameters_num_by_layer()
-        print(f"参数数量：{parameters_num}\n推理时间：{inference_time} ms")
+        print(f"推理一个batch的时间：{inference_time} ms")
         return parameters_num,inference_time
     def get_parameters_num(self,):
         '''
@@ -132,6 +133,7 @@ class ModelMeasurer:
             for _ in tqdm.tqdm(range(100),desc='Warm up ....'):
                 _ = model(dummy_input)
         # 同步等待所有 GPU 任务完成
+
         torch.cuda.synchronize()
         # 初始化时间容器
         timings =[]

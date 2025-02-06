@@ -7,6 +7,8 @@ from sklearn.metrics import precision_score, recall_score, f1_score, accuracy_sc
 from sklearn.metrics import roc_curve, roc_auc_score, auc
 from sklearn.metrics import average_precision_score
 from torch.cuda.amp import autocast,GradScaler
+from torch.optim.lr_scheduler import ReduceLROnPlateau
+
 def weighted_average_metrics(acc, ap, precision , recall, loss, weights=[30, 1.2, 1,1, 1.05]):
     loss=1-loss
     weighted_acc = acc * weights[0]
@@ -21,41 +23,47 @@ def weighted_average_metrics(acc, ap, precision , recall, loss, weights=[30, 1.2
 def float_equal(a, b, epsilon=1e-4):
     return abs(a - b) < epsilon
 
-def train_one_epoch(model, criterion, optimizer, train_loader, device,scaler=None):
-    """
-    执行单个训练周期，返回本周期平均损失。
-    """
+def train_one_epoch(
+    model, 
+    criterion, 
+    optimizer, 
+    train_loader, 
+    device,
+    scaler=None,
+    multi_loss_weight=[1, 0.3, 0.3]  # 更改变量名拼写
+):
     model.train()
     running_loss = 0.0
-    if scaler is None:
-        
-        for inputs, labels in train_loader:
-            inputs, labels = inputs.to(device), labels.to(device)
-            optimizer.zero_grad()
+    use_amp = scaler is not None
 
+    for inputs, labels in train_loader:
+        inputs, labels = inputs.to(device), labels.to(device)
+        optimizer.zero_grad()
+
+
+        with torch.cuda.amp.autocast(enabled=use_amp):
             outputs = model(inputs)
-            loss = criterion(outputs, labels)
+            if isinstance(outputs, (list, tuple)):
+                if len(outputs) != len(multi_loss_weight):
+                    raise ValueError(f"outputs和权重长度不匹配！")
+                loss = sum(criterion(out, labels)*w for out, w in zip(outputs, multi_loss_weight))
+            else:
+                loss = criterion(outputs, labels)
 
+        if use_amp:
+            scaler.scale(loss).backward()
+            scaler.step(optimizer)
+            scaler.update()
+        else:
             loss.backward()
             optimizer.step()
-    else:
-         for inputs, labels in train_loader:
-            inputs, labels = inputs.to(device), labels.to(device)
-            optimizer.zero_grad()
-            with autocast(enabled=True): # 使用 autocast 上下文管理器启用混合精度
-                outputs = model(inputs)
-                loss = criterion(outputs, labels)
-            scaler.scale(loss).backward()# 缩放损失并反向传播
-            scaler.step(optimizer)# 更新权重
-            scaler.update()# 更新缩放因子
-            # loss.backward()
-            # optimizer.step()
 
-    running_loss += loss.item()
+        running_loss += loss.item()
+
     return running_loss / len(train_loader)
         
 
-def validate_model(model, val_loader, device,only_val=False,AMP=True):
+def validate_model(model, val_loader, device,only_val=False,AMP=True,criterion=None,multi_loss_weight=[1, 0.3, 0.3]):
     """
     在或测试集验证集上评估模型，返回各项指标及中间需要的结果。
     参数:
@@ -69,30 +77,31 @@ def validate_model(model, val_loader, device,only_val=False,AMP=True):
     true_labels = []
     predicted_labels = []
     predicted_scores = []
+    running_loss = 0.0
     if only_val:
-        with torch.no_grad():
-            for inputs, labels in tqdm(val_loader,desc="模型测试中:"):
-                inputs, labels = inputs.to(device), labels.to(device)
-                with autocast(enabled=AMP):
-                    outputs = model(inputs)
-                # 取预测类别
-                _, predicted = torch.max(outputs.data, 1)
-                true_labels.extend(labels.cpu().numpy())
-                predicted_labels.extend(predicted.cpu().numpy())
-                # 假定输出第二列为正类分数
-                predicted_scores.extend(outputs[:, 1].cpu().numpy())
-    else:
-        with torch.no_grad():
-            for inputs, labels in val_loader:
-                inputs, labels = inputs.to(device), labels.to(device)
-                with autocast(enabled=AMP):
-                    outputs = model(inputs)
-                # 取预测类别
-                _, predicted = torch.max(outputs.data, 1)
-                true_labels.extend(labels.cpu().numpy())
-                predicted_labels.extend(predicted.cpu().numpy())
-                # 假定输出第二列为正类分数
-                predicted_scores.extend(outputs[:, 1].cpu().numpy())
+        val_loader=tqdm(val_loader,desc="模型测试中:")#only_val=True时，用户单独调用进行测试和验证，显示进度条
+    with torch.no_grad():
+        for inputs, labels in val_loader:
+            inputs, labels = inputs.to(device), labels.to(device)
+            with autocast(enabled=AMP):
+                outputs = model(inputs)
+                if criterion is not None:#需要计算loss时
+                    if isinstance(outputs, (list, tuple)):
+                        if len(outputs) != len(multi_loss_weight):
+                            raise ValueError(f"outputs和权重长度不匹配！")
+                        loss = sum(criterion(out, labels)*w for out, w in zip(outputs, multi_loss_weight))
+                        
+                    else:
+                        loss = criterion(outputs, labels)
+                        running_loss += loss.item()
+
+            # 取预测类别
+
+            _, predicted = torch.max(outputs.data, 1)
+            true_labels.extend(labels.cpu().numpy())
+            predicted_labels.extend(predicted.cpu().numpy())
+            # 假定输出第二列为正类分数
+            predicted_scores.extend(outputs[:, 1].cpu().numpy())
 
     # 计算各项指标
     accuracy = accuracy_score(true_labels, predicted_labels)
@@ -110,7 +119,8 @@ def validate_model(model, val_loader, device,only_val=False,AMP=True):
         "Precision": precision,
         "Recall": recall,
         "F1": f1,
-        "AP": ap
+        "AP": ap,
+        "Loss":running_loss/len(val_loader)
     }
     return metrics
 
@@ -177,7 +187,10 @@ def train_model(model,
                 num_epochs=10,
                 checkpoint_interval=0.25,
                 show_progress_interval=2,
-                AMP=True
+                AMP=True,
+                multi_loss_weight=[1,0.3,0.3],
+                lr_scheduler_step=0.6,
+
     ):
     
     """
@@ -197,6 +210,7 @@ def train_model(model,
             checkpoint_interval: 检查点保存的间隔。
             show_progress_interval: 进度条显示的间隔。
             AMP:是否采用混合精度计算
+            multi_loss_weight:多个loss的加权
         返回:
             bestMod: 最佳模型对象。
             train_logs: 训练日志记录列表。
@@ -211,7 +225,7 @@ def train_model(model,
     recall_history = []
     f1_history = []
     ap_history = []
-
+    validation_loss_history=[]
     if AMP == True:# 混合精度训练
         scaler = torch.cuda.amp.GradScaler()
     else:
@@ -228,12 +242,28 @@ def train_model(model,
         final_checkpoint_interval=1
     if show_progress_interval==0:
         show_progress_interval=1
-        
+    if lr_scheduler_step!=0:
+        lr_scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=lr_scheduler_step, patience=final_checkpoint_interval, verbose=True)
     for epoch in tqdm(range(num_epochs), desc="Training Epochs"):
         # 训练阶段
-        epoch_loss = train_one_epoch(model, criterion, optimizer, train_loader, device,scaler=scaler)
+        epoch_loss = train_one_epoch(
+                model, 
+                criterion,
+                optimizer, 
+                train_loader, 
+                device,scaler=scaler,
+                multi_loss_weight=multi_loss_weight
+            )
         # 验证阶段
-        metrics = validate_model(model, val_loader, device,AMP=AMP)
+        metrics = validate_model(
+            model, 
+            val_loader, 
+            device,
+            AMP=AMP,
+            criterion=criterion
+        )
+        if lr_scheduler_step!=0:
+            lr_scheduler.step(metrics["Loss"])#动态学习率
         # 更新日志
         loss_history.append(epoch_loss)
         acc_history.append(metrics["Accuracy"])
@@ -241,6 +271,7 @@ def train_model(model,
         recall_history.append(metrics["Recall"])
         f1_history.append(metrics["F1"])
         ap_history.append(metrics["AP"])
+        validation_loss_history.append(metrics["Loss"])
 
         # 根据加权指标更新最佳模型
         update_best_model(bestMod, metrics, epoch_loss, model, epoch,metrics_weights=metrics_weights)
@@ -250,10 +281,12 @@ def train_model(model,
         
         if epoch % show_progress_interval == 0:
             # 打印本周期结果
-            print(f'Epoch {epoch + 1}/{num_epochs}, Loss: {epoch_loss:.4f},  '
-                    f'Val Accuracy: {metrics["Accuracy"]:.4f}, AP: {metrics["AP"]:.4f}, '
-                    f'Precision: {metrics["Precision"]:.4f}, Recall: {metrics["Recall"]:.4f}')
-            print(f"当前最好的模型： {str(bestMod)}")
+            print(
+                    f'Epoch {epoch + 1}/{num_epochs}, train_Loss: {epoch_loss:.4f}, val_Loss: {metrics["Loss"]:.4f} ,'
+                    f'Val Accuracy: {metrics["Accuracy"]:.4f}, '
+                    f'Precision: {metrics["Precision"]:.4f}, Recall: {metrics["Recall"]:.4f}'
+                    )
+            print(f"当前最好的模型：{str(bestMod)}")
 
         # 更新 train_logs 对象
         train_logs.update(
@@ -263,5 +296,6 @@ def train_model(model,
             recall_lst=recall_history,
             f1_lst=f1_history,
             AP_lst=ap_history,
+            val_loss_history=validation_loss_history,
         )
     return bestMod, train_logs

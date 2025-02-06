@@ -145,14 +145,20 @@ class BestSelector:
         for key, val in self.bestMetrics.items():
             if len(str(val)) > 50:
                 continue
-            res.append(f"{key} : {val} ")
+            if key.find("epoch")!=-1:
+                res.append(f"{key} : {val} ")
+            else:
+                res.append(f"{key} : {val:.4f} ")
         return ",".join(res)
     def __repr__(self):
         res = []
         for key, val in self.bestMetrics.items():
             if len(str(val)) > 50:
                 continue
-            res.append(f"{key} : {val} ")
+            if key.find("epoch")!=-1:
+                res.append(f"{key} : {val} ")
+            else:
+                res.append(f"{key} : {val:.4f} ")
         return ",".join(res)
 
     def set_attr(self, ):
