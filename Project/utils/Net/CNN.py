@@ -7,6 +7,8 @@ import torch
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
+from .Attention import SelfAttention2D,ChannelAttention,SpatialAttention,CBAM
 class AutoCNN(nn.Module):
     '''
         自动计算卷积层和池化层的特征图尺寸，只需要计算输入输出通道数
@@ -33,14 +35,17 @@ class AutoCNN(nn.Module):
 
         self.feature_extractor=nn.Sequential(
             nn.Conv2d(input_channels,hidden_channels_size_1,kernel_size=3,stride=1,padding=1),
+            CBAM(hidden_channels_size_1),#通道注意力
             #(h+2*p-k)/s+1
             nn.BatchNorm2d(hidden_channels_size_1),#2d对2维图进行batchnorm
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2,stride=2),#
             nn.Conv2d(hidden_channels_size_1,hidden_channels_size_2,kernel_size=3,stride=1,padding=1),
+            SelfAttention2D(hidden_channels_size_2),#自注意力
             nn.ReLU(),
             nn.AvgPool2d(kernel_size=2,stride=2),#(14+2*0-2)/2+1=7
             nn.Conv2d(hidden_channels_size_2,hidden_channels_size_3,kernel_size=3,stride=1,padding=1),
+            CBAM(hidden_channels_size_3),#CBAM
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2,stride=2)
         )

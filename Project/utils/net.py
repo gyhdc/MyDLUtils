@@ -10,14 +10,15 @@ import torch.nn.functional as F
 
 
 from .metrics import ModelMeasurer
+#自己实现的网络
 from .Net.ResNet import ResNet
 from .Net.CNN import AutoCNN
 from .Net.AlexNet import AlexNet
 from .Net.VGGNet import VGGNet
-from .Net.Pretrained import BinaryClassificationMobileNetV3Large
 from .Net.GoogLeNet import GoogLeNet
+from .Net.Attention import SelfAttention2D,CBAM,SpatialAttention,ChannelAttention
 
-
+from .Net.Pretrained import BinaryClassificationMobileNetV3Large
 
 class CustomResNet(nn.Module):
     def __init__(self, num_classes=2,hidden_size=256):

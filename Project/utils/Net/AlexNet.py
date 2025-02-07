@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.optim as optim
 import torchvision
 import torchvision.transforms as transforms
-
+# from Attention import SelfAttention2D,CBAM
 
 class AlexNet(nn.Module):
     def __init__(
