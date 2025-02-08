@@ -17,6 +17,7 @@ from .Net.AlexNet import AlexNet
 from .Net.VGGNet import VGGNet
 from .Net.GoogLeNet import GoogLeNet
 from .Net.Attention import SelfAttention2D,CBAM,SpatialAttention,ChannelAttention
+from .Net.MobileNet import MobileNetV1
 
 from .Net.Pretrained import BinaryClassificationMobileNetV3Large
 
