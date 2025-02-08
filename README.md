@@ -6,7 +6,7 @@
 - 较为完整的训练过程和指标计算
 - 支持AMP混合精度计算，训练过程动态学习率调整，梯度缩放等操作
 #### 网络文件相关
-网络文件位于**Project/utils/Net**，均是自己复习的经典网络和模块，用于学习参考
+网络文件位于**Project/utils/Net**，均是自己实现的经典网络和模块，用于学习参考
 - 经典图像分类网络(如ResNet，GoogLeNet，VGGNet，AlexNet等)
 - 自己实现的各种注意力机制，如SelfAttention2D，ChannelsAttention，SpatialAttention，CBAM等
 - **待续**
