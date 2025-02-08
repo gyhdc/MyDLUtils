@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-
+import torchvision
 class DepthSeparableConv2d(nn.Module):
     '''
     深度可分离卷积，包含深度卷积 + 逐点卷积。
@@ -132,6 +132,11 @@ class MobileNetV1(nn.Module):
 # 测试网络结构
 if __name__ == "__main__":
     model = MobileNetV1(num_classes=1000)
-    x = torch.randn(1, 3, 224, 224)  # 模拟输入 224x224 RGB 图像
-    output = model(x)
-    print("Output shape:", output.shape)  # 应该输出 [1, 1000]
+    pre=torchvision.models.mobilenet_v2(pretrained=False)
+    import sys
+    sys.path.append("..")
+    from metrics import ModelMeasurer
+    m1=ModelMeasurer(model)
+    m2=ModelMeasurer(pre)
+    m1.simply_check_model(input_shape=(4, 3, 224, 224))
+    m2.simply_check_model(input_shape=(4, 3, 224, 224))

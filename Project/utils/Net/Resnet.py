@@ -67,6 +67,20 @@ class BasicBlock(nn.Module):
         return output
     
 class ResNet(nn.Module):
+    '''
+        ResNet结构
+        一个层包括多个残差块，一个残差块包含多个卷积
+        一个层需要下采样的时候stride为=2，kernel_size不变,该层第一个残差块的第一个卷积进行下采样
+
+        参数：
+            layers:每层残差块的个数配置
+            layers_channels:每层残差块的输出通道数
+            layers_stride:每层残差块的下采样步长，默认为1，不进行下采样
+            basic_block:残差块类型，默认为BasicBlock
+            num_classes:分类数
+            input_channels:输入通道数
+            hidden_channels:隐藏通道数，默认为64
+    '''
     def __init__(
         self,
         layers=[2,2,2,2],#每层的残差块个数
@@ -95,7 +109,7 @@ class ResNet(nn.Module):
             nn.MaxPool2d(kernel_size=3,stride=2,padding=1)#降采样/2
         )
         self.now_input_channels=hidden_channels#initial_block的输出通道数，作为下一层的输入通道数
-        self.Layers=self.get_Layers(stride_list=layers_stride)#获取每一层
+        self.Layers=self._make_layers(stride_list=layers_stride)#获取每一层
         self.classifier=nn.Sequential(#分类器
             nn.AdaptiveAvgPool2d((1,1)),#自适应平均池化，输出尺寸为1*1，池化也是一种类似的卷积计算
             nn.Flatten(),#出batchsize维度都展平·
@@ -109,7 +123,7 @@ class ResNet(nn.Module):
         x=self.Layers(x)#残差层
         x=self.classifier(x)#全局池化后展平为向量再分类
         return x
-    def get_Layers(
+    def _make_Layers(
             self,
             stride_list=[1,2,2,2]
         ):#获取resnet每层
@@ -193,10 +207,11 @@ def resnet34(
         num_classes=num_classes,
     )
 
-# import sys
-# sys.path.append("..")
+
 
 if __name__ == "__main__":
+    import sys
+    sys.path.append("..")
     from train_val import validate_model,train_model
     from metrics import ModelMeasurer
     model=resnet18()

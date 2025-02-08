@@ -81,7 +81,7 @@ class ModelMeasurer:
         print(f"参数数量：{parameters_num}")
         inference_time=self.get_inference_time(input_shape=input_shape)
         # measurer.print_parameters_num_by_layer()
-        print(f"推理一个batch的时间：{inference_time} ms")
+        print(f"推理一个batch的时间：{inference_time} s")
         return parameters_num,inference_time
     def get_parameters_num(self,):
         '''
