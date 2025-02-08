@@ -32,7 +32,7 @@ class Inception(nn.Module):
             BasicBlock(input_channels,channels_1x1[0],kernel_size=1)
         )
         self.branch_3x3=nn.Sequential(#第二个分支是3*3卷积，用于中低级特征提取，增加非线性
-            BasicBlock(input_channels,channels_3x3[0],kernel_size=1),#改变通道数
+            BasicBlock(input_channels,channels_3x3[0],kernel_size=1),#改变通道数,减少通道数
             BasicBlock(channels_3x3[0],channels_3x3[1],kernel_size=3,stride=1,padding=1)#311不改变特征图尺寸
         )
         self.branch_5x5=nn.Sequential(#第三个分支是5*5卷积，用于中高级特征提取，增加非线性
