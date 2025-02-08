@@ -41,7 +41,7 @@ class AutoCNN(nn.Module):
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2,stride=2),#
             nn.Conv2d(hidden_channels_size_1,hidden_channels_size_2,kernel_size=3,stride=1,padding=1),
-            SelfAttention2D(hidden_channels_size_2),#自注意力
+            CBAM(hidden_channels_size_2),#自注意力
             nn.ReLU(),
             nn.AvgPool2d(kernel_size=2,stride=2),#(14+2*0-2)/2+1=7
             nn.Conv2d(hidden_channels_size_2,hidden_channels_size_3,kernel_size=3,stride=1,padding=1),
