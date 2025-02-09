@@ -12,7 +12,7 @@ import shutil
 import os 
 from torchvision.transforms import ToTensor#用于把图片转化为张量
 import numpy as np#用于将张量转化为数组，进行除法
-
+from torchvision.transforms import functional as F
 def check_data_exist(data_dir):
     files=os.listdir(data_dir)
     if len(files)!=0:
@@ -78,7 +78,26 @@ def clear_folder(folder_path):
 
 
 
+class DetectionDataset(torch.utils.data.Dataset):
+    def __init__(self, image_paths, annotations, transform=None):
+        self.image_paths = image_paths
+        self.annotations = annotations  # 格式：list of {"boxes": [[x1,y1,x2,y2], ...], "labels": [...]}
+        self.transform = transform
 
+    def __getitem__(self, idx):
+        image = Image.open(self.image_paths[idx]).convert("RGB")
+        targets = self.annotations[idx]
+
+        # 数据增强（需同步处理图像和 boxes）
+        if self.transform:
+            image, targets = self.transform(image, targets)
+
+        # 转换为 Tensor
+        image = F.to_tensor(image)
+        boxes = torch.as_tensor(targets["boxes"], dtype=torch.float32)
+        labels = torch.as_tensor(targets["labels"], dtype=torch.int64)
+
+        return image, {"boxes": boxes, "labels": labels}
 
 class CustomImageDataset(Dataset):
     '''
@@ -151,8 +170,11 @@ def get_parts_of_datasets(datasets,rate=1,only_train=True):
     datasize=len(datasets)
     crop_size=int(rate*datasize)
     sub1,sub2=random_split(datasets,[crop_size,datasize-crop_size])
-    sub1.classes=datasets.classes
-    sub2.classes=datasets.classes
+    try:
+        sub1.classes=datasets.classes
+        sub2.classes=datasets.classes
+    except:
+        pass
     if only_train:
         return sub1
     else:
