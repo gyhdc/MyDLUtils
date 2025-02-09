@@ -51,7 +51,8 @@ def train_one_epoch_detection(
     model.train()
     running_loss = 0.0
     use_amp = scaler is not None
-
+    model_name=model.__class__.__name__
+    is_RCNNlike=(model_name.find("RCNN")!=-1)#如果有rcnn则需要给模型传递<images,targets>
     for images, targets in train_loader:
         # 将图像和目标转移到指定设备
         images = [img.to(device) for img in images]
@@ -59,17 +60,21 @@ def train_one_epoch_detection(
 
         optimizer.zero_grad()
         with autocast(enabled=use_amp):
-            outputs = model(images)
-            # 如果输出为多个loss，则用 multi_loss_weight 组合，否则直接计算 loss
-            if isinstance(outputs, (list, tuple)):
-                if multi_loss_weight is not None:
-                    if len(outputs) != len(multi_loss_weight):
-                        raise ValueError("outputs的数量与multi_loss_weight长度不匹配！")
-                    loss = sum(criterion(out, targets) * w for out, w in zip(outputs, multi_loss_weight))
-                else:
-                    loss = sum(criterion(out, targets) for out in outputs)
+            if is_RCNNlike:
+                loss_dict=model(images, targets)#训练模式直接返回多个loss，加权求和
+                loss=sum([loss_value for loss_name,loss_value in loss_dict.items()])
             else:
-                loss = criterion(outputs, targets)
+                outputs = model(images)
+                # 如果输出为多个loss，则用 multi_loss_weight 组合，否则直接计算 loss
+                if isinstance(outputs, (list, tuple)):
+                    if multi_loss_weight is not None:
+                        if len(outputs) != len(multi_loss_weight):
+                            raise ValueError("outputs的数量与multi_loss_weight长度不匹配！")
+                        loss = sum(criterion(out, targets) * w for out, w in zip(outputs, multi_loss_weight))
+                    else:
+                        loss = sum(criterion(out, targets) for out in outputs)
+                else:
+                    loss = criterion(outputs, targets)
 
         if use_amp:
             scaler.scale(loss).backward()
@@ -124,6 +129,11 @@ def validate_model_detection(
             targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
             with autocast(enabled=use_amp):
                 outputs = model(images)
+                '''
+                    •   boxes  ：检测框的坐标，形状为   (num_boxes, 4)  ，每个检测框由   (x1, y1, x2, y2)   表示。
+                    •   labels  ：检测框对应的类别标签，形状为   (num_boxes,)  。
+                    •   scores  ：检测框的置信度，形状为   (num_boxes,)  。
+                '''
                 if criterion is not None:
                     if isinstance(outputs, (list, tuple)):
                         if multi_loss_weight is not None:
@@ -137,6 +147,10 @@ def validate_model_detection(
             outputs_cpu = [{k: v.cpu() for k, v in out.items()} for out in outputs]
             targets_cpu = [{k: v.cpu() for k, v in t.items()} for t in targets]
             metric.update(outputs_cpu, targets_cpu)
+            '''
+                预测结果：一个字典，包含 boxes 、labels和scores  。
+                真实标注：一个字典，包含 boxes和labels  。
+            '''
     metric_result = metric.compute()
     mAP = metric_result["map"].item() if isinstance(metric_result["map"], torch.Tensor) else metric_result["map"]
     avg_loss = running_loss / len(val_loader) if criterion is not None else None
