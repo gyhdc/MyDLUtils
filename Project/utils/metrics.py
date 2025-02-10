@@ -76,10 +76,10 @@ class ModelMeasurer:
     def __init__(self,model,device="cuda"):
         self.model=model
         self.device=device
-    def simply_check_model(self,input_shape=(4, 3, 128, 128)):
+    def simply_check_model(self,input_shape=(4, 3, 128, 128),inference_repeation=300):
         parameters_num=self.get_parameters_num()
         print(f"参数数量：{parameters_num}")
-        inference_time=self.get_inference_time(input_shape=input_shape)
+        inference_time=self.get_inference_time(input_shape=input_shape,repetitions=inference_repeation)
         # measurer.print_parameters_num_by_layer()
         print(f"推理一个batch的时间：{inference_time} s")
         return parameters_num,inference_time

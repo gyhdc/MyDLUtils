@@ -9,7 +9,7 @@ from torchmetrics.detection.mean_ap import MeanAveragePrecision
 # 辅助函数
 #############################################
 
-def weighted_average_detection_metrics(mAP, loss, weights=[1.2, 1.05]):
+def weighted_average_detection_metrics(mAP, loss, weights=[5, 1.05]):
     """
     根据 mAP 和 loss（经过 1-loss 转换）计算加权平均指标。
     weights[0] 对 mAP 进行加权，weights[1] 对 (1 - loss) 加权。
@@ -25,56 +25,46 @@ def float_equal(a, b, epsilon=1e-4):
 #############################################
 # 训练单周期
 #############################################
-
 def train_one_epoch_detection(
     model, 
-    criterion, 
+    criterion,
     optimizer, 
     train_loader, 
     device,
     scaler=None,
-    multi_loss_weight=None  # 若模型输出多个loss，可传入各个loss的权重列表
+    multi_loss_weight=None
 ):
-    """
-    单个训练周期的目标检测模型训练函数
-    参数:
-        model: 待训练的检测模型
-        criterion: 损失函数，接收 (outputs, targets)
-        optimizer: 优化器
-        train_loader: 训练数据加载器，返回 (images, targets)
-        device: 设备
-        scaler: 混合精度训练的GradScaler对象（可选）
-        multi_loss_weight: 多个loss的权重列表（可选）
-    返回:
-        平均训练loss
-    """
     model.train()
     running_loss = 0.0
     use_amp = scaler is not None
-    model_name=model.__class__.__name__
-    is_RCNNlike=(model_name.find("RCNN")!=-1)#如果有rcnn则需要给模型传递<images,targets>
+    model_name = model.__class__.__name__
+    is_RCNNlike = "RCNN" in model_name
+
     for images, targets in train_loader:
-        # 将图像和目标转移到指定设备
-        images = [img.to(device) for img in images]
-        targets = [{k: v.to(device) for k, v in target.items()} for target in targets]
+        # 过滤空目标
+        non_empty_indices = [i for i, t in enumerate(targets) if len(t["boxes"]) > 0]
+        images = [images[i] for i in non_empty_indices]
+        targets = [targets[i] for i in non_empty_indices]
+        if len(images) == 0:
+            continue
+
+        # 转移数据到设备
+        if isinstance(images, (list,tuple)):
+                images = torch.stack(images, dim=0).to(device)#一batch的图像[B,C,H,W]
+        else:
+            images = images.to(device)
+        # images = [img.to(device) for img in images]
+        targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
 
         optimizer.zero_grad()
-        with autocast(enabled=use_amp):
+        with torch.cuda.amp.autocast(enabled=use_amp):
             if is_RCNNlike:
-                loss_dict=model(images, targets)#训练模式直接返回多个loss，加权求和
-                loss=sum([loss_value for loss_name,loss_value in loss_dict.items()])
+                loss_dict = model(images, targets)
+                # print(loss_dict)
+                loss = sum(loss_dict.values())
             else:
-                outputs = model(images)
-                # 如果输出为多个loss，则用 multi_loss_weight 组合，否则直接计算 loss
-                if isinstance(outputs, (list, tuple)):
-                    if multi_loss_weight is not None:
-                        if len(outputs) != len(multi_loss_weight):
-                            raise ValueError("outputs的数量与multi_loss_weight长度不匹配！")
-                        loss = sum(criterion(out, targets) * w for out, w in zip(outputs, multi_loss_weight))
-                    else:
-                        loss = sum(criterion(out, targets) for out in outputs)
-                else:
-                    loss = criterion(outputs, targets)
+                # 其他模型处理
+                pass
 
         if use_amp:
             scaler.scale(loss).backward()
@@ -87,6 +77,68 @@ def train_one_epoch_detection(
         running_loss += loss.item()
 
     return running_loss / len(train_loader)
+
+# def train_one_epoch_detection(
+#     model, 
+#     criterion, 
+#     optimizer, 
+#     train_loader, 
+#     device,
+#     scaler=None,
+#     multi_loss_weight=None  # 若模型输出多个loss，可传入各个loss的权重列表
+# ):
+#     """
+#     单个训练周期的目标检测模型训练函数
+#     参数:
+#         model: 待训练的检测模型
+#         criterion: 损失函数，接收 (outputs, targets)
+#         optimizer: 优化器
+#         train_loader: 训练数据加载器，返回 (images, targets)
+#         device: 设备
+#         scaler: 混合精度训练的GradScaler对象（可选）
+#         multi_loss_weight: 多个loss的权重列表（可选）
+#     返回:
+#         平均训练loss
+#     """
+#     model.train()
+#     running_loss = 0.0
+#     use_amp = scaler is not None
+#     model_name=model.__class__.__name__
+#     is_RCNNlike=(model_name.find("RCNN")!=-1)#如果有rcnn则需要给模型传递<images,targets>
+#     for images, targets in train_loader:
+#         # 将图像和目标转移到指定设备
+#         images = [img.to(device) for img in images]
+#         targets = [{k: v.to(device) for k, v in target.items()} for target in targets]
+
+#         optimizer.zero_grad()
+#         with autocast(enabled=use_amp):
+#             if is_RCNNlike:
+#                 loss_dict=model(images, targets)#训练模式直接返回多个loss，加权求和
+#                 loss=sum([loss_value for loss_name,loss_value in loss_dict.items()])
+#             else:
+#                 outputs = model(images)
+#                 # 如果输出为多个loss，则用 multi_loss_weight 组合，否则直接计算 loss
+#                 if isinstance(outputs, (list, tuple)):
+#                     if multi_loss_weight is not None:
+#                         if len(outputs) != len(multi_loss_weight):
+#                             raise ValueError("outputs的数量与multi_loss_weight长度不匹配！")
+#                         loss = sum(criterion(out, targets) * w for out, w in zip(outputs, multi_loss_weight))
+#                     else:
+#                         loss = sum(criterion(out, targets) for out in outputs)
+#                 else:
+#                     loss = criterion(outputs, targets)
+
+#         if use_amp:
+#             scaler.scale(loss).backward()
+#             scaler.step(optimizer)
+#             scaler.update()
+#         else:
+#             loss.backward()
+#             optimizer.step()
+
+#         running_loss += loss.item()
+
+#     return running_loss / len(train_loader)
 
 #############################################
 # 模型验证
@@ -125,7 +177,10 @@ def validate_model_detection(
     with torch.no_grad():
         for images, targets in val_loader:
             # images = [img.to(device) for img in images]
-            images = torch.stack(images, dim=0).to(device)#一batch的图像[B,C,H,W]
+            if isinstance(images, (list,tuple)):
+                images = torch.stack(images, dim=0).to(device)#一batch的图像[B,C,H,W]
+            else:
+                images = images.to(device)
             targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
             with autocast(enabled=use_amp):
                 outputs = model(images)
@@ -153,10 +208,14 @@ def validate_model_detection(
             '''
     metric_result = metric.compute()
     mAP = metric_result["map"].item() if isinstance(metric_result["map"], torch.Tensor) else metric_result["map"]
+    mAP_50 = metric_result["map_50"].item() if isinstance(metric_result["map_50"], torch.Tensor) else metric_result["map_50"]
+    mAP_75 = metric_result["map_75"].item() if isinstance(metric_result["map_75"], torch.Tensor) else metric_result["map_75"]
     avg_loss = running_loss / len(val_loader) if criterion is not None else None
 
     metrics = {
         "mAP": mAP,
+        "mAP_50": mAP_50,
+        "mAP_75": mAP_75,
         "Loss": avg_loss,
         # 可根据需要添加其他指标，如 map_50, map_75 等
     }
@@ -195,7 +254,7 @@ def update_best_model_detection(bestMod, current_metrics, epoch_loss, model, epo
     if current_weighted >= best_weighted:
         # 若加权指标相等，则比较 loss
         if float_equal(current_weighted, best_weighted):
-            if epoch_loss < bestMod.loss:
+            if epoch_loss <= bestMod.loss:
                 bestMod.update(
                     mAP=current_metrics["mAP"],
                     model=model,
@@ -223,7 +282,7 @@ def train_model(
     bestMod,
     train_logs, 
     config, 
-    metrics_weights=[1.2, 1.05],
+    metrics_weights=[5, 1.05],
     num_epochs=10,
     checkpoint_interval=0.25,
     show_progress_interval=2,
