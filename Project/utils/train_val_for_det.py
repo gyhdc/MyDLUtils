@@ -257,17 +257,21 @@ def update_best_model_detection(bestMod, current_metrics, epoch_loss, model, epo
             if epoch_loss <= bestMod.loss:
                 bestMod.update(
                     mAP=current_metrics["mAP"],
+                    mAP_50=current_metrics["mAP_50"],
+                    mAP_75=current_metrics["mAP_75"],
                     model=model,
                     loss=epoch_loss,
                     epoch=epoch,
                 )
         else:
             bestMod.update(
-                mAP=current_metrics["mAP"],
-                model=model,
-                loss=epoch_loss,
-                epoch=epoch,
-            )
+                    mAP=current_metrics["mAP"],
+                    mAP_50=current_metrics["mAP_50"],
+                    mAP_75=current_metrics["mAP_75"],
+                    model=model,
+                    loss=epoch_loss,
+                    epoch=epoch,
+                )
 
 #############################################
 # 整体训练流程
