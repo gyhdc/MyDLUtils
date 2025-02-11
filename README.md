@@ -12,7 +12,7 @@
 #### 网络文件相关
 网络文件位于**Project/utils/Net**，均是自己实现的经典网络和模块，可以调用和修改，用于学习参考。
 - 经典图像分类网络(如ResNet，GoogLeNet，VGGNet，MobileNet等)
-- 自己实现的各种注意力机制，如SelfAttention2D，SpatialAttention，CBAM等
+- 自己实现的各种注意力机制，如SelfAttention2D，MultiHeadAttention，CBAM等
 - **待续**
 #### 环境信息如下
 - python==3.9.17
