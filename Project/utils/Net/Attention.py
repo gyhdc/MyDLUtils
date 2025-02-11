@@ -79,24 +79,26 @@ class CBAM(nn.Module):
         channels_reduction: 通道缩放因子，默认为16，即将输入通道数缩小为原来的1/16
         spatial_conv_kernel_size: 空间卷积核大小，默认为7，卷积核大小为7x7
     '''
-    def __init__(self, input_channels, channels_reduction=16, spatial_conv_kernel_size=7):
+    def __init__(self, input_channels, channels_reduction=16, spatial_conv_kernel_size=7,gamma=1):
         super().__init__()
+        self.gamma=nn.Parameter(torch.ones(1)*gamma)#缩放注意力的因子
         self.channel_attention = ChannelAttention(input_channels, channels_reduction)
         self.spatial_attention = SpatialAttention(spatial_conv_kernel_size)
     def forward(self, x):
+        identity_layer=x
         x = self.channel_attention(x)#先通道注意力,对各通道加权
         x = self.spatial_attention(x)#再空间注意力对每个位置加权
-        return x
+        return x*self.gamma + identity_layer
 
 class SelfAttention1D(nn.Module):
     def __init__(self, embedding_dim):
         #[b,N,embedding_dim]，一个序列有多个元素（词）词向量的维度是embedding_dim,N是序列长
         super().__init__()
-        self.query_linear=nn.Linear(embedding_dim,embedding_dim)
+        self.query_linear=nn.Linear(embedding_dim,embedding_dim)#同等维度进行映射
         self.key_linear=nn.Linear(embedding_dim,embedding_dim)
         self.value_linear=nn.Linear(embedding_dim,embedding_dim)
         self.softmax=nn.Softmax(dim=-1)#其他词j对该词i的分布归一，在最后一个维度归一化（表示i词的所有权重分数）
-        self.gamma=nn.Parameter(torch.zeros(1))#输出缩放因子
+        self.gamma=nn.Parameter(torch.ones(1))#输出缩放因子
     def forward(self,x):
         b,N,D=x.size()
         delta=1/torch.sqrt(torch.tensor(D))#权重缩放因子，防止权重过大，与词向量维度相关
@@ -112,6 +114,9 @@ class SelfAttention1D(nn.Module):
 
 
 class SelfAttention2D(nn.Module):
+    '''
+        对[B,C,H,W]图像的每个像素计算与其他像素的相关性，得到权重矩阵
+    '''
     def __init__(self, input_channels,channels_reduction=8):
         super().__init__()
         #QK只是用来计算不同位置的注意力权重，不需要完全保留原始信息，低通道数计算 会更快
@@ -135,9 +140,9 @@ class SelfAttention2D(nn.Module):
         #V=>[B,C,N],N=H*W
         #为了实现N个像素可以自己互相计算相似度,需要对齐维度为[B,N,D]·[B,D,N]=[B,N,N]
         QT=Q.permute(0,2,1)#转置除batch的其他维度
-        scores = torch.bmm(QT,K)*delta #batch级别的矩阵乘法[B,N,D]·[B,D,N]=[B,N,N]=[B,H*W,H*W]
-        attention = self.softmax(scores)# [B,N,N]
-        output=torch.bmm(V,attention).view(B,C,H,W)#[B,C,N]·[B,N,N] =[B,C,N]=[B,C,H*W]->[b,C,H,W]
+        scores = torch.bmm(QT,K)*delta #batch级别的矩阵乘法[B,N,D]·[B,D,N]=[B,N,N]=[B,H*W,H*W]，即每个像素与其他像素的相关性
+        attention = self.softmax(scores)# [B,N,N]，非独立相关性
+        output=torch.bmm(V,attention).view(B,C,H,W)#[B,C,N]·[B,N,N] =[B,C,N]=[B,C,H*W]->[B,C,H,W]
         return output*self.gamma + x  #本质是一种残差连接,用可学习的gamma系数控制，对权重进行缩放
    
       
