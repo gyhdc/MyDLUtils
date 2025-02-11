@@ -18,7 +18,7 @@ from .Net.VGGNet import VGGNet
 from .Net.GoogLeNet import GoogLeNet
 from .Net.Attention import SelfAttention2D,CBAM,SpatialAttention,ChannelAttention
 from .Net.MobileNet import MobileNetV1
-
+from .Net.VisionTransformer import VisionTransformer
 from .Net.Pretrained import BinaryClassificationMobileNetV3Large
 
 class CustomResNet(nn.Module):

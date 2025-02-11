@@ -189,7 +189,8 @@ class MultiHeadAttention1D(nn.Module):
 
 class MultiHeadAttention2D(nn.Module):
     '''
-        多头注意力机制，对序列进行多头注意力，每个头对序列进行注意力，最后合并
+        图像多头注意力机制，将图像按位置划分为多个patch，每个patch单独进行自注意力
+        最后通过一个1*1的卷积核进行多个patch的自注意力特征整合 (论文中多个子空间的自注意力cat)
         参数:
         embedding_dim: 词向量的维度
         num_heads: 多头注意力的头数，默认为8

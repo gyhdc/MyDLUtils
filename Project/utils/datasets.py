@@ -230,7 +230,7 @@ def get_transform(
             transforms.RandomResizedCrop(resize_size,scale=(0.5, 1.0), ratio=(3./4., 4./3.)),#随机裁剪
             # transforms.RandomHorizontalFlip(p=0.5),#随机水平翻转
             transforms.RandomVerticalFlip(p=0.5),#随机垂直翻转
-            transforms.RandomGrayscale(p=0.4),  # 概率将图像转换为灰度
+            # transforms.RandomGrayscale(p=0.4),  # 概率将图像转换为灰度
             # transforms.RandomAffine(degrees, translate=None, scale=None, shear=None),#随机仿射变换
             # transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1),#随机颜色变换
             transforms.ToTensor(),

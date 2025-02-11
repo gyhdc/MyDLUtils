@@ -190,6 +190,7 @@ def train_model(model,
                 AMP=True,
                 multi_loss_weight=[1,0.3,0.3],
                 lr_scheduler_step=0.6,
+                lr_sheduler_patience=0.2,
 
     ):
     
@@ -243,7 +244,12 @@ def train_model(model,
     if show_progress_interval==0:
         show_progress_interval=1
     if lr_scheduler_step!=0:
-        lr_scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=lr_scheduler_step, patience=final_checkpoint_interval, verbose=True)
+        lr_scheduler = ReduceLROnPlateau(
+            optimizer, mode='min',
+            factor=lr_scheduler_step, 
+            patience=int(lr_sheduler_patience*num_epochs), 
+            verbose=True
+        )
     for epoch in tqdm(range(num_epochs), desc="Training Epochs"):
         # 训练阶段
         epoch_loss = train_one_epoch(
