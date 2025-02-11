@@ -101,7 +101,7 @@ class SelfAttention1D(nn.Module):
         self.gamma=nn.Parameter(torch.ones(1))#输出缩放因子
     def forward(self,x):
         b,N,D=x.size()
-        delta=1/torch.sqrt(torch.tensor(D))#权重缩放因子，防止权重过大，与词向量维度相关
+        delta=1/torch.sqrt(torch.tensor(D,device=x.device))#权重缩放因子，防止权重过大，与词向量维度相关
         # nn.Linear 层会对每个元素(词向量)(即每一行)单独进行全连接操作，而不需要对整个 N 进行展平。
         Q=self.query_linear(x)#[b,N,D] nn.Linear会对N个词向量批量全连接
         K=self.key_linear(x)
@@ -130,7 +130,7 @@ class SelfAttention2D(nn.Module):
         self.softmax=nn.Softmax(dim=-1)#对每个像素j对该像素i的权重进行归一化
     def forward(self,x):
         B,C,H,W=x.size()
-        delta=1/torch.sqrt(torch.tensor(H*W))#权重缩放因子，防止权重过大，与像素个数相关
+        delta=1/torch.sqrt(torch.tensor(H*W,device=x.device))#权重缩放因子，防止权重过大，与像素个数相关
         #1*1卷积，将特征图映射到低维度，方便计算
         Q=self.query_conv(x).view(B,-1,H*W)#展平为[b,c,h*w]运用相关性公式
         K=self.key_conv(x).view(B,-1,H*W)
@@ -145,4 +145,86 @@ class SelfAttention2D(nn.Module):
         output=torch.bmm(V,attention).view(B,C,H,W)#[B,C,N]·[B,N,N] =[B,C,N]=[B,C,H*W]->[B,C,H,W]
         return output*self.gamma + x  #本质是一种残差连接,用可学习的gamma系数控制，对权重进行缩放
    
-      
+class MultiHeadAttention1D(nn.Module):
+    '''
+        多头注意力机制，对序列进行多头注意力，每个头对序列进行注意力，最后合并
+        参数:
+        embedding_dim: 词向量的维度
+        num_heads: 多头注意力的头数，默认为8
+    '''
+    def __init__(self, embedding_dim, num_heads=8):
+        super().__init__()
+        self.num_heads =num_heads
+        self.D=embedding_dim
+        self.head_dim=self.D//self.num_heads
+        #词嵌入维度要被head数整除
+        assert self.D%num_heads==0,f"embedding_dim {self.D} should be divisible by num_heads {num_heads}"
+        self.query_linear=nn.Linear(self.D,self.D)
+        self.key_linear=nn.Linear(self.D,self.D)
+        self.value_linear=nn.Linear(self.D,self.D)#映射方式
+        self.multihead_attention_embedding=nn.Linear(self.D,self.D)#将reshape后的多头自注意力的特征信息重新整合映射
+        self.softmax=nn.Softmax(dim=-1)#对最后一个维度其他词对该词的权重进行归一化
+     
+        self.gamma=nn.Parameter(torch.zeros(1))
+    def forward(self,x):
+        B,N,D=x.size()
+        self.delta=1/torch.sqrt(torch.tensor(self.head_dim,device=x.device))
+        #[B,N,D]->[B,N,num_heads,head_dim] ->[B,num_heads,N,head_dim]将一个输入映射到多个空间进行自注意力
+        Q=self.query_linear(x).view(B,N,self.num_heads,self.head_dim).permute(0,2,1,3)
+        K=self.key_linear(x).view(B,N,self.num_heads,self.head_dim).permute(0,2,1,3)
+        V=self.value_linear(x).view(B,N,self.num_heads,self.head_dim).permute(0,2,1,3)
+
+        #[B,num_heads,N,head_dim] num_heads个空间并行计算自注意力
+        KT=K.permute(0,1,3,2)#[B,num_heads,head_dim,N]
+        scores=torch.matmul(Q,KT)*self.delta #matmul多最后两个维度的矩阵进行矩阵乘法
+        #scores:[B,num_heads,N,N] 多个空间中每个词对其他词的权重
+        weights=self.softmax(scores)
+
+        #weights:[B,num_heads,N,N] 
+        #V:[B,num_heads,N,head_dim]
+        #weights x V =[B,num_heads,N,head_dim]->[B,N,num_heads,head_dim] ->[B,N,D]
+        attention=torch.matmul(weights,V).permute(0,2,1,3).contiguous().view(B,N,D)#保持连续再回塑
+        multihead_attention=self.multihead_attention_embedding(attention)#整合在多个空间获取的注意力特征
+        return multihead_attention*self.gamma + x #缩放注意力和残差连接
+
+class MultiHeadAttention2D(nn.Module):
+    '''
+        多头注意力机制，对序列进行多头注意力，每个头对序列进行注意力，最后合并
+        参数:
+        embedding_dim: 词向量的维度
+        num_heads: 多头注意力的头数，默认为8
+    '''
+    def __init__(self, input_size,input_channels=3,channels_reduction=8, num_heads=8):
+        super().__init__()
+        self.reduced_channels=max(input_channels,input_channels//channels_reduction)
+    
+        #图像要能完整的划分为多个head
+        assert input_size[0]*input_size[1]%num_heads==0,f"embedding_dim {input_size[0]*input_size[1]} should be divisible by num_heads {num_heads}"
+        self.head_dim=input_size[0]*input_size[1]//num_heads # 每个patch的维度
+        self.num_heads =num_heads
+
+        self.query_conv=nn.Conv2d(input_channels,self.reduced_channels,kernel_size=1)
+        self.key_conv=nn.Conv2d(input_channels,self.reduced_channels,kernel_size=1)
+        self.value_conv=nn.Conv2d(input_channels,input_channels,kernel_size=1)
+
+        self.softmax=nn.Softmax(dim=-1)
+        self.multihead_attention_embedding=nn.Conv2d(input_channels,input_channels,kernel_size=1)
+    def forward(self,x):
+        B,C,H,W=x.size()
+        
+        delta=1/torch.sqrt(torch.tensor(self.head_dim,device=x.device,dtype=x.dtype))
+        #对输入进行QKV映射->[B,C,H*W] ->>[B,num_heads,C,head_dim] 映射到num_heads 个低维空间
+        Q=self.query_conv(x).view(B,self.num_heads,self.reduced_channels,self.head_dim)
+        K=self.key_conv(x).view(B,self.num_heads,self.reduced_channels,self.head_dim)
+        V=self.value_conv(x).view(B,self.num_heads,C,self.head_dim)
+
+        #计算各个空间的注意力,此时子空间像素个数head_dim才是序列中的N，计算的是子空间每个像素之间的关系
+        QT=Q.permute(0,1,3,2)#[B,num_heads,head_dim,D]  QK的输出通道数有降低
+        scores=torch.matmul(QT,K)*delta#[B,num_heads,head_dim,D]·[B,num_heads,D,head_dim]=[B,num_heads,head_dim,head_dim]
+        weights=self.softmax(scores)
+
+        #计算各个子空间的自注意力分数，再重新对输出进行变换
+        #->[B,num_heads,C,head_dim]->[B,C,num_heads,head_dim]->[B,C,H*W]->[B,C,H,W]
+        attention=torch.matmul(V,weights).permute(0,2,1,3).contiguous().view(B,C,H*W).view(B,C,H,W)
+        multihead_attention=self.multihead_attention_embedding(attention)#重新整合各个patch的自注意力特征
+        return multihead_attention+x #残差连接
