@@ -226,6 +226,7 @@ class VisionTransformer(nn.Module):
         self.cls_token=nn.Parameter(torch.zeros(1,1,embed_dim))
 
         # 3. 位置编码，为每个 token 添加位置信息（包括 cls token）
+        # 本质和全局cls token一样是一个可学习向量，但是可以学习到位置信息
         self.pos_embed=nn.Parameter(torch.zeros(1,self.num_patches+1,embed_dim))# [1,N+1,D]
         self.pos_drop=nn.Dropout(dropout_rate)
 
