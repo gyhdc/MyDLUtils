@@ -19,4 +19,4 @@
 - numpy==1.25.2
 - torch==2.0.0+cu118
 - torchvision=0.15.1+cu118
-
+- `pip install torch==2.0.0+cu118 torchvision==0.15.1+cu118 -f https://download.pytorch.org/whl/torch_stable.html`
