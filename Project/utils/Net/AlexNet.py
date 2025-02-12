@@ -6,6 +6,17 @@ import torchvision.transforms as transforms
 # from Attention import SelfAttention2D,CBAM
 
 class AlexNet(nn.Module):
+    '''
+        该网络本质是对单一卷积层的堆叠
+        一个卷积层，通常由以下部分组成：
+        - Conv2d：卷积核，用于卷积运算提取局部特征
+        - ReLU：激活函数，用于激活卷积核提取的特征，进行非线性运算
+        - MaxPool2d/AvgPool2d：池化层，用于减少特征图的尺寸，减少参数量，提高计算效率
+        其中，卷积的超参数，kernel_size，stride，padding设置会影响输出特征图的尺寸
+        计算公式为((H-kernel_size+2*padding)/stride)+1,
+        特别的，k(kernel_size),p(padding),s(stride)
+        为321时，原尺寸/2,ksp512不变，ksp311不变
+    '''
     def __init__(
             self, 
             num_classes=1000,
@@ -17,7 +28,7 @@ class AlexNet(nn.Module):
         self.input_channels=input_channels
         self.hidden_channels=hidden_channels
         self.current_conv_hidden_channel=0
-        self.feature_extractor = nn.Sequential(
+        self.feature_extractor = nn.Sequential(#卷积神经网络，用于提取特征
             nn.Conv2d(input_channels, hidden_channels[0], kernel_size=11, stride=4),
             nn.ReLU(inplace=True),#原地relu，节省内存
             nn.MaxPool2d(kernel_size=3, stride=2),#h/2
@@ -38,6 +49,7 @@ class AlexNet(nn.Module):
             nn.MaxPool2d(kernel_size=3,stride=2)
         )
         #一层算子，一层激活，一层池化/batchnorm/dropout
+        #将上方提取的特征用全局池化AdaptiveAvgPool2d和Flatten展平为向量，进行全连接层分类
         self.classifier=nn.Sequential(
             nn.AdaptiveAvgPool2d((1,1)),#除batch维度全部通道池化为一个标量
             nn.Flatten(),#把batch维度都拉平#输出为(batch,channels)

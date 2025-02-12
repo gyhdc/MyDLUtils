@@ -19,5 +19,4 @@
 - numpy==1.25.2
 - torch==2.0.0+cu118
 - torchvision=0.15.1+cu118
-- tensorboard==2.15.1
-- numpy==1.25.2
+
