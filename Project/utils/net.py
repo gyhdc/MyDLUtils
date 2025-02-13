@@ -20,7 +20,7 @@ from .Net.Attention import SelfAttention2D,CBAM,SpatialAttention,ChannelAttentio
 from .Net.MobileNet import MobileNetV1
 from .Net.VisionTransformer import VisionTransformer
 from .Net.Pretrained import BinaryClassificationMobileNetV3Large
-
+from .Net.EfficientNet import EfficientNetB3
 class CustomResNet(nn.Module):
     def __init__(self, num_classes=2,hidden_size=256):
         super(CustomResNet, self).__init__()

@@ -92,7 +92,7 @@ class MobileNetV1(nn.Module):
             nn.ReLU(inplace=True)
         )
         
-        # 构建深度可分离卷积层
+        # 构建多层深度可分离卷积层
         self.DSC_layers = self._make_layers()
         
         # 分类器：全局平均池化 + Flatten + 全连接层
