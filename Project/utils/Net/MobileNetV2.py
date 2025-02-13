@@ -48,9 +48,9 @@ class DepthSeparableConv2d(nn.Module):
         return x
 class InvertedResidualBlock(nn.Module):
     '''
-        先1*1卷积扩张中间通道数，
-        再深度可分离卷积
-        最后1*1卷积 恢复目标输出通道数
+        扩张：先1*1卷积扩张中间通道数，
+        深度可分离卷积层：再深度可分离卷积
+        收缩 ：最后1*1卷积 恢复目标输出通道数
     '''
     def __init__(
             self,

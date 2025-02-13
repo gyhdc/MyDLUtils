@@ -17,13 +17,13 @@
 
 #### 网络文件相关
 
-网络文件位于**`Project/utils/Net`**，均是自己实现的经典网络和模块，可以调用和修改，附有注释用于学习参考。
+网络文件位于`Project/utils/Net`，均是自己实现的经典网络和模块，可以调用和修改，附有注释用于学习参考。
 
 - **经典图像分类网络**
-  - VisionTransformer, ResNet, GoogLeNet, VGGNet, MobileNetV2, EfficientNet等
+  - `VisionTransformer, ResNet, GoogLeNet, VGGNet, MobileNetV2, EfficientNet`等
 - **自己实现的各种注意力机制和模块**
-  - SelfAttention2D, MultiHeadAttention, CBAM等
-  - InvertedResidualBlock, MBConvBlock, DepthSeparableConvBlock等
+  - `SelfAttention2D, MultiHeadAttention, CBAM`等
+  - `InvertedResidualBlock, MBConvBlock, DepthSeparableConvBlock`等
 - **待续**
 
 #### 环境信息如下
